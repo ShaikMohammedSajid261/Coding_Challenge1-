@@ -1,0 +1,86 @@
+from collections import defaultdict, deque
+
+class TaskScheduler:
+    def __init__(self):
+        self.tasks = {}
+        self.dependencies = defaultdict(list)
+        self.reverse_dependencies = defaultdict(list)
+        self.EFT = {}
+        self.LFT = {}
+        self.EST = {}
+        self.LST = {}
+
+    def add_task(self, task_id, duration):
+        self.tasks[task_id] = duration
+
+    def add_dependency(self, from_task, to_task):
+        self.dependencies[from_task].append(to_task)
+        self.reverse_dependencies[to_task].append(from_task)
+
+    def calculate_times(self):
+        self.calculate_earliest_times()
+        self.calculate_latest_times()
+
+    def calculate_earliest_times(self):
+        
+        in_degree = {task: 0 for task in self.tasks}
+        for task in self.dependencies:
+            for dependent in self.dependencies[task]:
+                in_degree[dependent] += 1
+
+        queue = deque([task for task in in_degree if in_degree[task] == 0])
+        self.EST = {task: 0 for task in self.tasks}
+        self.EFT = {task: self.tasks[task] for task in self.tasks}
+
+        while queue:
+            current = queue.popleft()
+            current_finish_time = self.EFT[current]
+
+            for dependent in self.dependencies[current]:
+                in_degree[dependent] -= 1
+                if in_degree[dependent] == 0:
+                    queue.append(dependent)
+                self.EST[dependent] = max(self.EST[dependent], current_finish_time)
+                self.EFT[dependent] = self.EST[dependent] + self.tasks[dependent]
+
+    def calculate_latest_times(self):
+        
+        max_earliest_finish_time = max(self.EFT.values())
+        self.LFT = {task: max_earliest_finish_time for task in self.tasks}
+
+        end_tasks = [task for task in self.tasks if task not in self.dependencies]
+        queue = deque(end_tasks)
+
+        while queue:
+            current = queue.popleft()
+            current_start_time = self.LFT[current] - self.tasks[current]
+
+            for dependent in self.reverse_dependencies[current]:
+                self.LFT[dependent] = min(self.LFT[dependent], current_start_time)
+                queue.append(dependent)
+
+        self.LST = {task: self.LFT[task] - self.tasks[task] for task in self.tasks}
+
+    def earliest_completion_time(self):
+        return max(self.EFT.values())
+
+    def latest_completion_time(self):
+        return max(self.LFT.values())
+
+scheduler = TaskScheduler()
+scheduler.add_task('T_START', 0)
+scheduler.add_task('T1', 3)
+scheduler.add_task('T2', 2)
+scheduler.add_task('T3', 5)
+scheduler.add_task('T4', 4)
+
+scheduler.add_dependency('T_START', 'T1')
+scheduler.add_dependency('T1', 'T2')
+scheduler.add_dependency('T1', 'T3')
+scheduler.add_dependency('T2', 'T4')
+scheduler.add_dependency('T3', 'T4')
+
+scheduler.calculate_times()
+
+print("Earliest completion time:", scheduler.earliest_completion_time())
+print("Latest completion time:", scheduler.latest_completion_time())
